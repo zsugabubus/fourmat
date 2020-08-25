@@ -6,6 +6,47 @@ SUITE_FILE
 
 static char buf[10];
 
+TEST(fmt_time)
+{
+#define A(expect, seconds) do { \
+	buf[fmt_time(buf, seconds)] = '\0'; \
+	assert_equal(&buf, expect); \
+} while (0)
+
+#define SEC  * 1
+#define MIN  * 60
+#define HOUR * 60 MIN
+#define DAY  * 24 HOUR
+#define WEEK * 7 DAY
+#define YEAR * 52 WEEK
+
+	A("   0s", 0 SEC);
+	A("   1s", 1 SEC);
+	A("   9s", 9 SEC);
+	A(" 1m1s", 1 MIN + 1 SEC);
+	A("1m30s", 1 MIN + 30 SEC);
+	A("10m1s", 10 MIN + 1 SEC);
+	A("  10m", 10 MIN + 10 SEC);
+	A("  60m", 60 MIN);
+	A(" 1h1s", 1 HOUR + 1 SEC);
+	A(" 1h1m", 1 HOUR + 1 MIN);
+	A(" 1h1m", 1 HOUR + 1 MIN + 1 SEC);
+	A("1h30m", 1 HOUR + 30 MIN);
+	A("1h10m", 1 HOUR + 10 MIN);
+	A("3y14w", 3 YEAR + 14 WEEK);
+	A("21y2s", 21 YEAR + 2 SEC);
+	A("never", -1);
+
+#undef SEC
+#undef MIN
+#undef HOUR
+#undef DAY
+#undef WEEK
+#undef YEAR
+
+#undef A
+}
+
 TEST(fmt_speed)
 {
 #define A(expect, number) do { \

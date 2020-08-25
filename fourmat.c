@@ -21,7 +21,7 @@ fmt_time(char *str, uint32_t time)
 		'h',
 		'd',
 		'w',
-		'>'
+		'y'
 	};
 	static uint32_t const
 	TIME_BASE[] = {
@@ -34,38 +34,47 @@ fmt_time(char *str, uint32_t time)
 		UINT32_MAX
 	};
 
-	uint8_t i;
-	uint8_t t;
-
-	for (i = 0; time > TIME_BASE[i + 1]; ++i)
-		;
-
-	if (array_len(TIME_BASE) - 2 <= i) {
+	if (time >= 100 * TIME_BASE[array_len(TIME_BASE) - 2]) {
 		str[0] = 'n';
 		str[1] = 'e';
 		str[2] = 'v';
 		str[3] = 'e';
 		str[4] = 'r';
-		return 5;
-	}
-
-	t = time / TIME_BASE[i];
-	if (i > 0 && t < 10) {
-		str[0] = (i < array_len(TIME_UNITS) ? '0' + t : ' ');
-		str[1] = TIME_UNITS[i];
-		time = (time - t * TIME_BASE[i]) / TIME_BASE[i - 1];
-		--i;
 	} else {
-		str[0] = ' ';
-		str[1] = ' ';
-		time = t;
-	}
-	str[2] = '0' + (time / 10);
-	str[3] = '0' + (time % 10);
-	str[4] = TIME_UNITS[i];
+		uint8_t i, j;
 
-	if (str[1] == ' ' && str[2] == '0')
-		str[2] = ' ';
+		for (i = 0; (TIME_BASE + 1)[i] < time; ++i)
+			;
+
+		/* t1 UNIT[i] [ t2 UNIT[j] ] */
+		uint8_t t1, t2;
+
+		t1 = time / TIME_BASE[i];
+		time %= TIME_BASE[i];
+
+		for (j = i; 0 < j && 0 == (t2 = time / TIME_BASE[--j]);)
+			time %= TIME_BASE[j];
+
+		if ((t1 < 10 || t2 < 10) && 0 < t2) {
+			str[3] = '0' + (t2 % 10);
+			str[4] = TIME_UNITS[j];
+
+			if (t2 < 10) {
+				str[0] = t1 >= 10 ? '0' + (t1 / 10) : ' ';
+				str -= 2;
+			} else {
+				str[0] = ' ';
+				str[2] = '0' + (t2 / 10);
+				str -= 3;
+			}
+		} else {
+			str[0] = ' ';
+			str[1] = ' ';
+			str[2] = t1 >= 10 ? '0' + (t1 / 10) : ' ';
+		}
+		str[3] = '0' + (t1 % 10);
+		str[4] = TIME_UNITS[i];
+	}
 	return 5;
 }
 
@@ -85,8 +94,8 @@ fmt_decimal(char *str, uint64_t n, char const *UNITS, uint64_t const *BASE)
 
 	if (n >= 10 * BASE[2] || 1 == (BASE - 1)[i]) {
 		n /= BASE[2];
-		str[0] = n >= 100 ? '0' +  (n / 100)       : ' ';
-		str[1] = n >= 10  ? '0' + ((n % 100) / 10) : ' ';
+		str[0] = n >= 100 ? '0' + (n / 100)      : ' ';
+		str[1] = n >= 10  ? '0' + (n % 100 / 10) : ' ';
 		str[2] = '0' + (n % 10);
 	} else {
 		n *= 10;
@@ -133,7 +142,7 @@ fmt_number(char *str, uint64_t num)
 	NUMBER_UNITS = "kMGT";
 
 	if (num < 10000) {
-		str[0] = num >= 1000 ? '0' + num / 1000 : ' ';
+		str[0] = num >= 1000 ? '0' + (num / 1000) : ' ';
 	} else {
 		char *unit = NUMBER_UNITS;
 
@@ -144,9 +153,9 @@ fmt_number(char *str, uint64_t num)
 		--str;
 	}
 
-	str[1] = num >= 100 ? '0' + (num / 100) % 10 : ' ';
-	str[2] = num >= 10  ? '0' + (num / 10 ) % 10  : ' ';
-	str[3] = '0' + num % 10;
+	str[1] = num >= 100 ? '0' + (num % 1000 / 100) : ' ';
+	str[2] = num >= 10  ? '0' + (num % 100  / 10)  : ' ';
+	str[3] = '0' + (num % 10);
 
 	return 4;
 }
@@ -160,23 +169,23 @@ fmt_percent(char *str, uint64_t num, uint64_t total)
 		/* 9.99% */
 		str[0] = '0' + (p / 100);
 		dec_sep(&str[1]);
-		str[2] = '0' + (p / 10 % 10);
+		str[2] = '0' + (p % 100 / 10);
 		str[3] = '0' + (p % 10);
 		str[4] = '%';
 	} else if (p < 100 PERCENT) {
 		/* 99.9% */
 		p /= 10;
 		str[0] = '0' + (p / 100);
-		str[1] = '0' + (p / 10 % 10);
+		str[1] = '0' + (p % 100 / 10);
 		dec_sep(&str[2]);
 		str[3] = '0' + (p % 10);
 		str[4] = '%';
 	} else if (p < 10000 PERCENT) {
 		/* 999% */
 		p /= 100;
-		str[0] = p < 1000 ? ' ' : '0' + (p / 1000 % 10);
-		str[1] = '0' + (p / 100 % 10);
-		str[2] = '0' + (p / 10 % 10);
+		str[0] = p >= 1000 ? '0' + (p / 1000) : ' ';
+		str[1] = '0' + (p % 1000 / 100);
+		str[2] = '0' + (p % 100 / 10);
 		str[3] = '0' + (p % 10);
 		str[4] = '%';
 	} else {
