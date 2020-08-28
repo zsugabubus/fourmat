@@ -2,7 +2,7 @@
 
 #include "fourmat.h"
 
-SUITE_FILE
+SUITE()
 
 static char buf[10];
 
